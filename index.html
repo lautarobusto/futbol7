@@ -39,11 +39,16 @@
 
     <!-- Tab: Equipos -->
     <section id="tab-equipos" class="tab-content">
-      <div class="bar">
+      <div class="paste-area">
+        <textarea id="wsp-input" placeholder="Pegá la lista del grupo de WhatsApp..." rows="3"></textarea>
+        <button class="btn btn-primary" id="btn-parse-list">Cargar lista</button>
+      </div>
+      <div id="parse-summary"></div>
+      <div class="bar" style="margin-top:12px">
         <div class="bar-actions">
-          <button class="btn btn-primary" id="btn-generate">Armar equipos</button>
+          <button class="btn btn-secondary" id="btn-generate">Armar equipos</button>
           <button class="btn btn-ghost" id="btn-reshuffle" style="display:none">Re-mezclar</button>
-          <button class="btn btn-secondary" id="btn-share" style="display:none">Copiar</button>
+          <button class="btn btn-ghost" id="btn-share" style="display:none">Copiar</button>
         </div>
         <span id="teams-count" class="muted"></span>
       </div>

@@ -353,6 +353,8 @@ el('modal-close').addEventListener('click', closeModal);
 el('modal-cancel').addEventListener('click', closeModal);
 el('modal-overlay').addEventListener('click', (e) => { if (e.target === el('modal-overlay')) closeModal(); });
 
+el('btn-parse-list').addEventListener('click', loadWspList);
+
 el('btn-generate').addEventListener('click', () => {
   state.teams = generateTeams();
   if (!state.teams) {
@@ -422,6 +424,117 @@ const DEFAULT_PLAYERS = [
   { name: 'Roll',           control: 6, fisica: 6, velocidad: 6 },
 ];
 
+// ── WhatsApp list parser ───────────────────────────────────────────────────
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => i || j)
+  );
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function normName(s) {
+  return s.toLowerCase().trim()
+    .replace(/\.$/, '')           // trailing dot
+    .replace(/\(.*?\)/g, '')      // anything in parens
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function matchPlayer(search) {
+  const s = normName(search);
+  if (!s) return null;
+
+  // 1. exact
+  let m = state.players.find(p => normName(p.name) === s);
+  if (m) return m;
+
+  // 2. starts-with (either direction)
+  m = state.players.find(p => {
+    const n = normName(p.name);
+    return n.startsWith(s) || s.startsWith(n);
+  });
+  if (m) return m;
+
+  // 3. any word from search appears in player name
+  const sWords = s.split(' ');
+  m = state.players.find(p => {
+    const pWords = normName(p.name).split(' ');
+    return sWords.some(sw => pWords.some(pw => pw === sw || pw.startsWith(sw)));
+  });
+  if (m) return m;
+
+  // 4. fuzzy (levenshtein ≤ 2, only for short names)
+  if (s.length >= 4) {
+    let best = null, bestDist = 3;
+    for (const p of state.players) {
+      const dist = levenshtein(s, normName(p.name));
+      if (dist < bestDist) { best = p; bestDist = dist; }
+    }
+    if (best) return best;
+  }
+
+  return null;
+}
+
+function parseWspList(text) {
+  return text.split('\n')
+    .map(line => line
+      .replace(/\u2060/g, '')          // invisible word joiner (WhatsApp)
+      .replace(/^\s*\d+\s*\.?\s*/, '') // strip leading number + dot
+      .trim()
+    )
+    .filter(line => line && !/^\w+\s+\d+\/\d+$/i.test(line)); // skip date lines
+}
+
+function loadWspList() {
+  const text = el('wsp-input').value.trim();
+  if (!text) return;
+
+  const names = parseWspList(text);
+  if (!names.length) return;
+
+  // Reset availability + guests
+  state.available.clear();
+  state.guests = [];
+  state.teams = null;
+
+  const matched = [], unmatched = [];
+
+  // Track already-matched player ids to avoid duplicates
+  const used = new Set();
+
+  for (const name of names) {
+    const player = matchPlayer(name);
+    if (player && !used.has(player.id)) {
+      state.available.add(player.id);
+      used.add(player.id);
+      matched.push(player.name);
+    } else if (!player) {
+      state.guests.push({ id: uid(), name, control: 6, fisica: 6, velocidad: 6 });
+      unmatched.push(name);
+    }
+  }
+
+  // Show summary
+  const summary = el('parse-summary');
+  let html = `<span class="ok">✓ ${matched.length} encontrados</span>`;
+  if (unmatched.length) {
+    html += ` &nbsp;<span class="warn">⚠ ${unmatched.length} como invitados: ${unmatched.join(', ')}</span>`;
+  }
+  summary.innerHTML = html;
+
+  // Auto-generate
+  state.teams = generateTeams();
+  renderMatch();
+  renderTeams();
+}
+
 // ── URL param: ?jugador=Nombre ─────────────────────────────────────────────
 function handleUrlParam() {
   const params = new URLSearchParams(window.location.search);
@@ -436,10 +549,13 @@ function handleUrlParam() {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
+const DATA_VERSION = 'v3';
 load();
-if (state.players.length < DEFAULT_PLAYERS.length) {
+if (localStorage.getItem('futbol7_v') !== DATA_VERSION) {
+  // Force reseed: fixes any players with old scores
   state.players = DEFAULT_PLAYERS.map(p => ({ id: uid(), ...p }));
   save();
+  localStorage.setItem('futbol7_v', DATA_VERSION);
 }
 renderAll();
 handleUrlParam();
