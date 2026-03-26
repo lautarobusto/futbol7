@@ -443,7 +443,7 @@ const DEFAULT_PLAYERS = [
   { name: 'Pablo E.',         control: 6, fisica: 6, velocidad: 6 },
   { name: 'Christian Damián', control: 6, fisica: 6, velocidad: 6 },
   { name: 'Vlad',             control: 6, fisica: 6, velocidad: 6 },
-  { name: 'Gabriel N.',       control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Gabriel S.',       control: 6, fisica: 6, velocidad: 6 },
   { name: 'El Chato',         control: 6, fisica: 6, velocidad: 6 },
   { name: 'Dan',            control: 6, fisica: 6, velocidad: 6 },
   { name: 'Gerardo R.',     control: 6, fisica: 6, velocidad: 6 },
@@ -527,17 +527,15 @@ function matchPlayer(search) {
 }
 
 function parseWspList(text) {
-  return text.split('\n')
-    .map(line => line
-      .replace(/[\u200B-\u200F\u2060\uFEFF]/g, '') // all invisible chars
-      .replace(/^\s*\d+\s*\.?\s*/, '')              // strip "1." / "1 ." / "10."
-      .trim()
-    )
-    .filter(line =>
-      line &&
-      !/^\w+\s+\d+\/\d+$/i.test(line) &&           // skip "Jueves 26/03"
-      !/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)/i.test(line)
-    );
+  const names = [];
+  for (const line of text.split('\n')) {
+    const clean = line.replace(/[\u200B-\u200F\u2060\uFEFF]/g, '').trim();
+    if (/^\d+/.test(clean)) {                       // solo líneas con número
+      const name = clean.replace(/^\d+\s*\.?\s*/, '').trim();
+      if (name) names.push(name);
+    }
+  }
+  return names;
 }
 
 function loadWspList() {
@@ -597,7 +595,7 @@ function handleUrlParam() {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
-const DATA_VERSION = 'v4';
+const DATA_VERSION = 'v5';
 load();
 if (localStorage.getItem('futbol7_v') !== DATA_VERSION) {
   // Force reseed: fixes any players with old scores
