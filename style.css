@@ -360,6 +360,19 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
   opacity: 0.5;
 }
 
+.swap-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.swap-btn:hover { color: var(--text); border-color: var(--muted); }
+
 /* ── Paste area ── */
 .paste-area {
   display: flex;

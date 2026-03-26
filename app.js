@@ -302,8 +302,11 @@ function renderTeams() {
 
   el('teams-count').textContent = `${negro.length + blanco.length} jugadores`;
 
-  const playerRow = (p) => `
+  const playerRow = (p, enNegro) => `
     <div class="team-player">
+      <button class="swap-btn" data-action="swap" data-id="${p.id}">
+        ${enNegro ? '→' : '←'}
+      </button>
       <span>${esc(p.name)}</span>
       <span class="team-player-score">${totalScore(p)}</span>
     </div>
@@ -319,7 +322,7 @@ function renderTeams() {
           </div>
           <span class="team-total">Σ ${totalNegro}</span>
         </div>
-        <div class="team-players">${negro.map(playerRow).join('')}</div>
+        <div class="team-players">${negro.map(p => playerRow(p, true)).join('')}</div>
       </div>
       <div class="team-card blanco">
         <div class="team-header">
@@ -329,7 +332,7 @@ function renderTeams() {
           </div>
           <span class="team-total">Σ ${totalBlanco}</span>
         </div>
-        <div class="team-players">${blanco.map(playerRow).join('')}</div>
+        <div class="team-players">${blanco.map(p => playerRow(p, false)).join('')}</div>
       </div>
     </div>
     <p class="muted" style="margin-top:10px;text-align:center;font-size:12px">
@@ -434,6 +437,22 @@ document.addEventListener('click', (e) => {
     state.guests = state.guests.filter(g => g.id !== id);
     state.teams = null;
     renderMatch();
+    renderTeams();
+    return;
+  }
+
+  if (action === 'swap' && state.teams) {
+    const { negro, blanco } = state.teams;
+    const inNegro = negro.find(p => p.id === id);
+    if (inNegro) {
+      state.teams.negro = negro.filter(p => p.id !== id);
+      state.teams.blanco = [...blanco, inNegro];
+    } else {
+      const inBlanco = blanco.find(p => p.id === id);
+      if (!inBlanco) return;
+      state.teams.blanco = blanco.filter(p => p.id !== id);
+      state.teams.negro = [...negro, inBlanco];
+    }
     renderTeams();
     return;
   }
