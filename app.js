@@ -143,7 +143,7 @@ function enforceConstraints(teams) {
   }
 }
 
-function recordMatch(teams) {
+function recordMatch(teams, extra = {}) {
   if (!teams) return;
 
   const totalNegro = teams.negro.reduce((sum, player) => sum + totalScore(player), 0);
@@ -164,6 +164,9 @@ function recordMatch(teams) {
     totalBlanco,
     negro: teams.negro.map(player => ({ name: player.name, score: totalScore(player) })),
     blanco: teams.blanco.map(player => ({ name: player.name, score: totalScore(player) })),
+    golesNegro: extra.golesNegro ?? null,
+    golesBlanco: extra.golesBlanco ?? null,
+    balance: extra.balance ?? null,
   });
 
   state.history = state.history.slice(0, 20);
@@ -281,9 +284,11 @@ function renderMatch() {
 function renderTeams() {
   const display = el('teams-display');
   const reshuffleBtn = el('btn-reshuffle');
+  const saveMatchBtn = el('btn-save-match');
 
   if (!state.teams) {
     reshuffleBtn.style.display = 'none';
+    saveMatchBtn.style.display = 'none';
     el('btn-share').style.display = 'none';
     const total = state.available.size + state.guests.length;
     display.innerHTML = total < 2
@@ -294,6 +299,7 @@ function renderTeams() {
   }
 
   reshuffleBtn.style.display = '';
+  saveMatchBtn.style.display = '';
   el('btn-share').style.display = '';
 
   const { negro, blanco } = state.teams;
@@ -351,12 +357,22 @@ function renderHistory() {
   }
 
   list.className = 'history-list';
+  const balanceLabel = (value) => ({
+    balanced: 'Estuvo balanceado',
+    negro_better: 'Negro fue mucho mejor',
+    blanco_better: 'Blanco fue mucho mejor',
+    very_unbalanced: 'Muy desbalanceado en general',
+  }[value] || '');
   list.innerHTML = state.history.slice(0, 20).map(match => `
     <article class="history-card">
       <div class="history-head">
         <div class="history-date">${esc(match.dateLabel || match.date || '')}</div>
-        <div class="history-score">Negro ${match.totalNegro} - Blanco ${match.totalBlanco}</div>
+        <div class="history-score">${match.golesNegro != null && match.golesBlanco != null
+          ? `Negro ${match.golesNegro} - Blanco ${match.golesBlanco}`
+          : `Negro ${match.totalNegro} - Blanco ${match.totalBlanco}`
+        }</div>
       </div>
+      ${match.balance ? `<div class="history-balance">${esc(balanceLabel(match.balance))}</div>` : ''}
       <div class="history-teams">
         <div class="history-team">
           <strong>Negro (${match.negro.length})</strong>
@@ -410,6 +426,19 @@ function closeModal() {
   state.editing = null;
   state.isGuest = false;
   el('player-form').reset();
+}
+
+function openSaveMatchModal() {
+  if (!state.teams) return;
+  el('input-goals-negro').value = '';
+  el('input-goals-blanco').value = '';
+  el('input-balance').value = 'balanced';
+  el('save-match-overlay').classList.remove('hidden');
+}
+
+function closeSaveMatchModal() {
+  el('save-match-overlay').classList.add('hidden');
+  el('save-match-form').reset();
 }
 
 // ── Event delegation ───────────────────────────────────────────────────────
@@ -520,6 +549,24 @@ el('player-form').addEventListener('submit', (e) => {
   renderAll();
 });
 
+el('save-match-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!state.teams) return;
+
+  const rawNegro = el('input-goals-negro').value.trim();
+  const rawBlanco = el('input-goals-blanco').value.trim();
+
+  recordMatch(state.teams, {
+    golesNegro: rawNegro === '' ? null : parseInt(rawNegro, 10),
+    golesBlanco: rawBlanco === '' ? null : parseInt(rawBlanco, 10),
+    balance: el('input-balance').value,
+  });
+
+  closeSaveMatchModal();
+  renderHistory();
+  renderPlayers();
+});
+
 // ── Tab switching ──────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => setActiveTab(tab.dataset.tab));
@@ -546,6 +593,10 @@ el('btn-clear-history').addEventListener('click', () => {
 el('modal-close').addEventListener('click', closeModal);
 el('modal-cancel').addEventListener('click', closeModal);
 el('modal-overlay').addEventListener('click', (e) => { if (e.target === el('modal-overlay')) closeModal(); });
+el('btn-save-match').addEventListener('click', openSaveMatchModal);
+el('save-match-close').addEventListener('click', closeSaveMatchModal);
+el('save-match-cancel').addEventListener('click', closeSaveMatchModal);
+el('save-match-overlay').addEventListener('click', (e) => { if (e.target === el('save-match-overlay')) closeSaveMatchModal(); });
 
 el('btn-parse-list').addEventListener('click', loadWspList);
 
@@ -555,18 +606,12 @@ el('btn-generate').addEventListener('click', () => {
     alert('Marcá al menos 2 jugadores disponibles en la pestaña Partido.');
     return;
   }
-  recordMatch(state.teams);
   renderTeams();
-  renderHistory();
-  renderPlayers();
 });
 
 el('btn-reshuffle').addEventListener('click', () => {
   state.teams = generateTeams();
-  recordMatch(state.teams);
   renderTeams();
-  renderHistory();
-  renderPlayers();
 });
 
 el('btn-share').addEventListener('click', () => {
@@ -583,7 +628,10 @@ el('btn-share').addEventListener('click', () => {
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') {
+    closeModal();
+    closeSaveMatchModal();
+  }
 });
 
 // ── Default players ────────────────────────────────────────────────────────
