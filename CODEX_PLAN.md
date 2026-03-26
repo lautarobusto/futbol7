@@ -42,6 +42,23 @@ Archivos clave:
 
 ---
 
+## Estado actual (post-revisión CC)
+
+### ✅ Hecho y aprobado
+- Parser WhatsApp con fuzzy matching robusto (`getMatchScore`)
+- Snake draft balanceado + regla Chino/JP separados
+- Historial de partidos — tab, schema, función `recordMatch()` lista
+- Conteo de asistencia — `getAttendanceCounts()`, badge en Jugadores
+- Sort de jugadores (`score` / `name` / `attendance`)
+- **PWA completa** — `manifest.json`, `sw.js`, íconos, service worker
+
+### ❌ Implementado mal — corregir antes de avanzar
+- **Admin lock con PIN** — requerimiento cambió: edición abierta para todos. Ver Feature 1.
+- **Auto-guardado en historial** — `recordMatch()` se llama al armar Y al re-mezclar. Debe ser manual con modal. Ver Feature 3.
+- **Formato WhatsApp con emojis** — se rompen en algunos dispositivos. Ver Feature 4.
+
+---
+
 ## Features pendientes
 
 ---
