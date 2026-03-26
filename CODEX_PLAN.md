@@ -128,46 +128,117 @@ Archivos clave:
 
 ---
 
-### Feature 3 — Guardado manual de partido
+### Feature 3 — Historial con resultado y opinión de balanceo
 
-**Problema actual:** el historial se guarda automáticamente al armar equipos. Se quiere control manual: guardar solo cuando el partido realmente se jugó, con resultado y opinión de balanceo.
+**Flujo correcto** (el orden importa):
+1. Se generan equipos → se guardan automáticamente como partido **"pendiente"** (sin resultado)
+2. Van a jugar
+3. Después del partido → tab Historial → partido pendiente arriba con botón **"Cargar resultado"**
+4. Modal → cargan goles + opinión → queda guardado como partido completo
 
 **Qué hacer:**
 
-1. **Remover el auto-guardado:** en `app.js`, quitar el llamado a `recordMatch()` del listener de `btn-generate` y de `btn-reshuffle`.
+#### Paso 1 — Mantener el auto-guardado al generar, pero sin resultado
+- `recordMatch()` sigue llamándose en `btn-generate` (NO en `btn-reshuffle` — solo al primer armado)
+- El registro se guarda con `golesNegro: null`, `golesBlanco: null`, `balance: null` → estado "pendiente"
 
-2. **Agregar botón "Guardar partido"** en el tab Equipos, visible solo cuando hay equipos armados (junto a Re-mezclar y Compartir):
-   ```html
-   <button class="btn btn-secondary" id="btn-save-match" style="display:none">Guardar partido</button>
-   ```
+#### Paso 2 — Tab Historial: mostrar partido pendiente destacado
+- Si el último registro tiene `golesNegro === null`, mostrarlo con clase `pending` y botón **"Cargar resultado"**
+- CSS: borde con color acento (`--primary`) para destacarlo visualmente
 
-3. **Modal de guardado** — al clickear "Guardar partido", abrir un modal con:
-   - **Resultado Negro** — input numérico (goles)
-   - **Resultado Blanco** — input numérico (goles)
-   - **Opinión de balanceo** — `<select>` con opciones:
-     - `balanced` → "Estuvo balanceado"
-     - `negro_better` → "Negro fue mucho mejor"
-     - `blanco_better` → "Blanco fue mucho mejor"
-     - `very_unbalanced` → "Muy desbalanceado en general"
-   - Botones: Cancelar / Guardar
+#### Paso 3 — Modal "Cargar resultado"
+Al tocar "Cargar resultado" en un partido pendiente, abrir un modal con:
+- **Goles Negro** — `<input type="number" min="0" max="99">`
+- **Goles Blanco** — `<input type="number" min="0" max="99">`
+- **¿Cómo estuvo?** — `<select>`:
+  - `''` → "Seleccioná..." (placeholder, required)
+  - `'balanced'` → "Estuvo balanceado"
+  - `'negro_better'` → "Negro fue mucho mejor"
+  - `'blanco_better'` → "Blanco fue mucho mejor"
+  - `'very_unbalanced'` → "Muy desbalanceado"
+- Botones: Cancelar / Guardar
 
-4. **Schema actualizado** en `localStorage['futbol7_history']`:
-   ```js
-   {
-     id, date, dateLabel,
-     negro: [{ name, score }],
-     blanco: [{ name, score }],
-     totalNegro, totalBlanco,
-     golesNegro: 3,       // número, puede ser null si no se cargó
-     golesBlanco: 2,
-     balance: 'balanced'  // 'balanced' | 'negro_better' | 'blanco_better' | 'very_unbalanced'
-   }
-   ```
+Al guardar: actualizar el registro en `state.history` con los valores, llamar `saveHistory()`, cerrar modal, re-renderizar historial.
 
-5. **Mostrar en historial:** cada tarjeta de partido muestra:
-   - Resultado: `Negro 3 - Blanco 2` (si se cargó)
-   - Opinión: badge con texto legible
-   - Jugadores de cada equipo
+#### Paso 4 — Schema en `localStorage['futbol7_history']`
+```js
+{
+  id, date, dateLabel,
+  negro: [{ name, score }],
+  blanco: [{ name, score }],
+  totalNegro, totalBlanco,
+  golesNegro: null,    // null = pendiente, número = jugado
+  golesBlanco: null,
+  balance: null        // null | 'balanced' | 'negro_better' | 'blanco_better' | 'very_unbalanced'
+}
+```
+Los registros viejos sin estos campos no deben romper — usar `?? null`.
+
+#### Paso 5 — Render de cada tarjeta en Historial
+- **Pendiente** (golesNegro === null): borde destacado, botón "Cargar resultado"
+- **Completo**: mostrar `Negro X - Blanco Y` + badge de opinión con texto legible
+- Jugadores de cada equipo listados debajo
+
+#### HTML del modal (agregar en `index.html`):
+```html
+<div id="result-modal-overlay" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Resultado del partido</h2>
+      <button class="modal-close" id="result-modal-close">&times;</button>
+    </div>
+    <form id="result-form">
+      <div class="form-group">
+        <label>Goles Negro</label>
+        <input type="number" id="input-goles-negro" min="0" max="99" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Goles Blanco</label>
+        <input type="number" id="input-goles-blanco" min="0" max="99" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>¿Cómo estuvo?</label>
+        <select id="input-balance">
+          <option value="">Seleccioná...</option>
+          <option value="balanced">Estuvo balanceado</option>
+          <option value="negro_better">Negro fue mucho mejor</option>
+          <option value="blanco_better">Blanco fue mucho mejor</option>
+          <option value="very_unbalanced">Muy desbalanceado</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" id="result-modal-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+```
+
+#### CSS para el select y estado pendiente:
+```css
+select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 14px;
+  padding: 8px 10px;
+  outline: none;
+}
+select:focus { border-color: var(--primary); }
+
+.history-card.pending { border-color: var(--primary); }
+.pending-label { font-size: 12px; color: var(--primary); margin-bottom: 6px; }
+.balance-badge {
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  color: var(--muted);
+}
+```
 
 ---
 
