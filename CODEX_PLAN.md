@@ -57,7 +57,6 @@ Archivos clave:
 
 ### ❌ Pendiente de corrección
 - **Auto-guardado en historial** — `recordMatch()` se llama al armar Y al re-mezclar. Debe ser manual con modal. Ver Feature 3.
-- **Formato WhatsApp con emojis** — se rompen en algunos dispositivos. Ver Feature 4.
 
 ---
 
@@ -66,6 +65,8 @@ Archivos clave:
 ---
 
 ### ~~Feature 1 — Edición abierta~~ ✅ DONE
+### ~~Feature 2 — Swap de jugadores~~ ✅ DONE
+### ~~Feature 4 — Formato ASCII WhatsApp~~ ✅ DONE
 
 ---
 
