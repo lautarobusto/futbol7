@@ -369,6 +369,34 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
 });
 
+// ── Default players (seed on first load) ──────────────────────────────────
+const DEFAULT_PLAYERS = [
+  // gambeta → control alto
+  { name: 'David',     control: 8, fisica: 6, velocidad: 7 },
+  { name: 'Seba',      control: 8, fisica: 6, velocidad: 7 },
+  { name: 'Emi',       control: 8, fisica: 6, velocidad: 7 },
+  // medio/defensa → físico alto
+  { name: 'JP',        control: 6, fisica: 7, velocidad: 6 },
+  { name: 'Chino',     control: 6, fisica: 7, velocidad: 6 },
+  { name: 'Cata',      control: 6, fisica: 7, velocidad: 6 },
+  // delantero → velocidad alta
+  { name: 'faffaa',    control: 6, fisica: 6, velocidad: 8 },
+  { name: 'Rodri',     control: 6, fisica: 6, velocidad: 8 },
+  { name: 'Roger',     control: 6, fisica: 6, velocidad: 8 },
+  { name: 'Damián N',  control: 6, fisica: 6, velocidad: 8 },
+  // defensa → físico alto
+  { name: 'Pablo E',   control: 5, fisica: 8, velocidad: 6 },
+  // medio/físico
+  { name: 'Damián G',  control: 5, fisica: 9, velocidad: 6 },
+  // mixto / medio → todo parejo
+  { name: 'Vlad',      control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Gabriel S', control: 6, fisica: 6, velocidad: 6 },
+];
+
 // ── Init ───────────────────────────────────────────────────────────────────
 load();
+if (state.players.length === 0) {
+  state.players = DEFAULT_PLAYERS.map(p => ({ id: uid(), ...p }));
+  save();
+}
 renderAll();
