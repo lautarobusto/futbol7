@@ -50,6 +50,19 @@ function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.players));
 }
 
+function ensureDefaultPlayers() {
+  const existing = new Set(state.players.map(p => normName(p.name)));
+  let changed = false;
+
+  for (const player of DEFAULT_PLAYERS) {
+    if (existing.has(normName(player.name))) continue;
+    state.players.push({ id: uid(), ...player });
+    changed = true;
+  }
+
+  if (changed) save();
+}
+
 // ── Algorithm ──────────────────────────────────────────────────────────────
 // Snake draft: sort by score DESC (shuffle within ties), distribute zigzag.
 function generateTeams() {
@@ -520,16 +533,17 @@ function extractWspName(line) {
     .trim();
 }
 
-function matchPlayer(search) {
+function matchPlayer(search, used = new Set()) {
   const s = normName(search);
   if (!s) return null;
+  const candidates = state.players.filter(p => !used.has(p.id));
 
   // 1. exact
-  let m = state.players.find(p => normName(p.name) === s);
+  let m = candidates.find(p => normName(p.name) === s);
   if (m) return m;
 
   // 2. starts-with (either direction)
-  m = state.players.find(p => {
+  m = candidates.find(p => {
     const n = normName(p.name);
     return n.startsWith(s) || s.startsWith(n);
   });
@@ -538,7 +552,7 @@ function matchPlayer(search) {
   // 3. any meaningful word from search appears in player name (skip 1-char words)
   const sWords = s.split(' ').filter(w => w.length > 1);
   if (sWords.length) {
-    m = state.players.find(p => {
+    m = candidates.find(p => {
       const pWords = normName(p.name).split(' ');
       return sWords.some(sw => pWords.some(pw => pw === sw || pw.startsWith(sw)));
     });
@@ -548,7 +562,7 @@ function matchPlayer(search) {
   // 4. fuzzy (levenshtein ≤ 2, only for short names)
   if (s.length >= 4) {
     let best = null, bestDist = 3;
-    for (const p of state.players) {
+    for (const p of candidates) {
       const dist = levenshtein(s, normName(p.name));
       if (dist < bestDist) { best = p; bestDist = dist; }
     }
@@ -602,12 +616,12 @@ function loadWspList() {
   const used = new Set();
 
   for (const name of names) {
-    const player = matchPlayer(name);
-    if (player && !used.has(player.id)) {
+    const player = matchPlayer(name, used);
+    if (player) {
       state.available.add(player.id);
       used.add(player.id);
       matched.push(player.name);
-    } else if (!player) {
+    } else {
       state.guests.push({ id: uid(), name, control: 6, fisica: 6, velocidad: 6 });
       unmatched.push(name);
     }
@@ -649,5 +663,6 @@ if (localStorage.getItem('futbol7_v') !== DATA_VERSION) {
   save();
   localStorage.setItem('futbol7_v', DATA_VERSION);
 }
+ensureDefaultPlayers();
 renderAll();
 handleUrlParam();
