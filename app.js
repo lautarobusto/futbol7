@@ -1,6 +1,8 @@
 'use strict';
 
 const STORAGE_KEY = 'futbol7_players';
+const HISTORY_KEY = 'futbol7_history';
+const ADMIN_KEY = 'futbol7_admin';
 
 // Jugadores que NO pueden ir en el mismo equipo
 const CONSTRAINTS = [
@@ -12,9 +14,13 @@ const state = {
   players: [],       // { id, name, control, fisica, velocidad } — persisted
   available: new Set(), // player ids available today — not persisted
   guests: [],        // { id, name, control, fisica, velocidad } — not persisted
+  history: [],
   teams: null,       // { negro: [], blanco: [] } | null
   editing: null,     // player id being edited, or null
   isGuest: false,    // is the modal adding a guest?
+  isAdmin: false,
+  activeTab: 'jugadores',
+  playerSort: 'score',
 };
 
 // ── Utils ──────────────────────────────────────────────────────────────────
@@ -44,10 +50,25 @@ function load() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) state.players = JSON.parse(raw);
   } catch { state.players = []; }
+
+  try {
+    const rawHistory = localStorage.getItem(HISTORY_KEY);
+    state.history = rawHistory ? JSON.parse(rawHistory) : [];
+  } catch { state.history = []; }
+
+  state.isAdmin = sessionStorage.getItem(ADMIN_KEY) === '1';
 }
 
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.players));
+}
+
+function saveHistory() {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history.slice(0, 20)));
+}
+
+function saveAdminState() {
+  sessionStorage.setItem(ADMIN_KEY, state.isAdmin ? '1' : '0');
 }
 
 function ensureDefaultPlayers() {
@@ -130,33 +151,93 @@ function enforceConstraints(teams) {
   }
 }
 
+function recordMatch(teams) {
+  if (!teams) return;
+
+  const totalNegro = teams.negro.reduce((sum, player) => sum + totalScore(player), 0);
+  const totalBlanco = teams.blanco.reduce((sum, player) => sum + totalScore(player), 0);
+  const now = new Date();
+
+  state.history.unshift({
+    id: uid(),
+    date: now.toISOString(),
+    dateLabel: now.toLocaleString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    totalNegro,
+    totalBlanco,
+    negro: teams.negro.map(player => ({ name: player.name, score: totalScore(player) })),
+    blanco: teams.blanco.map(player => ({ name: player.name, score: totalScore(player) })),
+  });
+
+  state.history = state.history.slice(0, 20);
+  saveHistory();
+}
+
+function getAttendanceCounts() {
+  const counts = new Map();
+
+  for (const match of state.history) {
+    for (const team of [match.negro || [], match.blanco || []]) {
+      for (const player of team) {
+        const key = normName(player.name);
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+  }
+
+  return counts;
+}
+
 // ── Render: Jugadores tab ──────────────────────────────────────────────────
 function renderPlayers() {
   const list = el('players-list');
   el('player-count').textContent = `${state.players.length} jugadores`;
+  el('btn-sort-players').textContent = `Orden: ${state.playerSort === 'attendance' ? 'asistencia' : state.playerSort === 'name' ? 'nombre' : 'puntaje'}`;
 
   if (state.players.length === 0) {
     list.innerHTML = `<div class="empty-state">No hay jugadores. Agregá uno para empezar.</div>`;
     return;
   }
 
-  const sorted = [...state.players].sort((a, b) => totalScore(b) - totalScore(a));
+  const attendance = getAttendanceCounts();
+  const sorted = [...state.players].sort((a, b) => {
+    if (state.playerSort === 'attendance') {
+      const diff = (attendance.get(normName(b.name)) || 0) - (attendance.get(normName(a.name)) || 0);
+      if (diff) return diff;
+    }
+
+    if (state.playerSort === 'name') {
+      return a.name.localeCompare(b.name, 'es');
+    }
+
+    const scoreDiff = totalScore(b) - totalScore(a);
+    if (scoreDiff) return scoreDiff;
+    return a.name.localeCompare(b.name, 'es');
+  });
 
   list.innerHTML = sorted.map(p => `
     <div class="player-row">
-      <span class="player-name">${esc(p.name)}</span>
+      <div class="player-meta">
+        <span class="player-name">${esc(p.name)}</span>
+        <span class="player-attendance">${attendance.get(normName(p.name)) || 0} asist.</span>
+      </div>
       <div class="metrics">
         <span class="metric-chip">C <span>${p.control}</span></span>
         <span class="metric-chip">F <span>${p.fisica}</span></span>
         <span class="metric-chip">V <span>${p.velocidad}</span></span>
       </div>
       <span class="player-score">${totalScore(p)}</span>
-      <div class="row-actions">
+      <div class="row-actions" ${state.isAdmin ? '' : 'hidden'}>
         <button class="btn-icon" title="Editar" data-action="edit" data-id="${p.id}">✏️</button>
         <button class="btn-icon btn-danger" title="Eliminar" data-action="delete" data-id="${p.id}">✕</button>
       </div>
     </div>
-  `).join('');
+  `).join('') + (!state.isAdmin ? `<p class="muted admin-note">Modo lectura. Activá el candado para editar o borrar jugadores.</p>` : '');
 }
 
 // ── Render: Partido tab ────────────────────────────────────────────────────
@@ -265,10 +346,61 @@ function renderTeams() {
   `;
 }
 
+function renderHistory() {
+  const list = el('history-list');
+  el('history-count').textContent = `${state.history.length} partido${state.history.length === 1 ? '' : 's'} guardado${state.history.length === 1 ? '' : 's'}`;
+
+  if (!state.history.length) {
+    list.innerHTML = `<div class="empty-state">Todavía no hay partidos guardados.</div>`;
+    return;
+  }
+
+  list.className = 'history-list';
+  list.innerHTML = state.history.slice(0, 20).map(match => `
+    <article class="history-card">
+      <div class="history-head">
+        <div class="history-date">${esc(match.dateLabel || match.date || '')}</div>
+        <div class="history-score">Negro ${match.totalNegro} - Blanco ${match.totalBlanco}</div>
+      </div>
+      <div class="history-teams">
+        <div class="history-team">
+          <strong>Negro (${match.negro.length})</strong>
+          <div>${esc(match.negro.map(p => p.name).join(', '))}</div>
+        </div>
+        <div class="history-team">
+          <strong>Blanco (${match.blanco.length})</strong>
+          <div>${esc(match.blanco.map(p => p.name).join(', '))}</div>
+        </div>
+      </div>
+    </article>
+  `).join('');
+}
+
+function updateAdminUI() {
+  el('btn-admin-toggle').textContent = state.isAdmin ? '🔓' : '🔒';
+  el('btn-admin-toggle').setAttribute('aria-pressed', String(state.isAdmin));
+  el('btn-admin-toggle').classList.toggle('is-admin', state.isAdmin);
+  document.body.classList.toggle('locked', !state.isAdmin);
+  el('btn-add-player').hidden = !state.isAdmin;
+}
+
+function setActiveTab(target) {
+  state.activeTab = target;
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.tab === target);
+  });
+  document.querySelectorAll('.tab-content').forEach(section => {
+    section.classList.toggle('active', section.id === `tab-${target}`);
+  });
+}
+
 function renderAll() {
+  updateAdminUI();
   renderPlayers();
   renderMatch();
   renderTeams();
+  renderHistory();
+  setActiveTab(state.activeTab);
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────
@@ -300,12 +432,14 @@ document.addEventListener('click', (e) => {
   const id = e.target.closest('[data-id]')?.dataset.id;
 
   if (action === 'edit') {
+    if (!state.isAdmin) return;
     const player = state.players.find(p => p.id === id);
     if (player) openModal({ title: 'Editar jugador', player });
     return;
   }
 
   if (action === 'delete') {
+    if (!state.isAdmin) return;
     if (!confirm(`¿Eliminar a ${state.players.find(p => p.id === id)?.name}?`)) return;
     state.players = state.players.filter(p => p.id !== id);
     state.available.delete(id);
@@ -372,6 +506,11 @@ el('player-form').addEventListener('submit', (e) => {
     return;
   }
 
+  if (!state.isAdmin) {
+    closeModal();
+    return;
+  }
+
   if (state.editing) {
     const idx = state.players.findIndex(p => p.id === state.editing);
     if (idx !== -1) state.players[idx] = { ...state.players[idx], ...data };
@@ -388,18 +527,44 @@ el('player-form').addEventListener('submit', (e) => {
 
 // ── Tab switching ──────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    const target = tab.dataset.tab;
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
-    tab.classList.add('active');
-    el(`tab-${target}`).classList.add('active');
-  });
+  tab.addEventListener('click', () => setActiveTab(tab.dataset.tab));
 });
 
 // ── Button wiring ──────────────────────────────────────────────────────────
-el('btn-add-player').addEventListener('click', () => openModal({ title: 'Nuevo jugador' }));
+el('btn-add-player').addEventListener('click', () => {
+  if (!state.isAdmin) return;
+  openModal({ title: 'Nuevo jugador' });
+});
+el('btn-sort-players').addEventListener('click', () => {
+  state.playerSort = state.playerSort === 'score'
+    ? 'attendance'
+    : state.playerSort === 'attendance'
+      ? 'name'
+      : 'score';
+  renderPlayers();
+});
 el('btn-add-guest').addEventListener('click', () => openModal({ isGuest: true }));
+el('btn-admin-toggle').addEventListener('click', () => {
+  if (state.isAdmin) {
+    state.isAdmin = false;
+    saveAdminState();
+    renderAll();
+    return;
+  }
+
+  const pin = window.prompt('PIN admin');
+  if (pin !== '7777') return;
+  state.isAdmin = true;
+  saveAdminState();
+  renderAll();
+});
+el('btn-clear-history').addEventListener('click', () => {
+  if (!state.history.length) return;
+  if (!confirm('¿Borrar el historial de partidos?')) return;
+  state.history = [];
+  saveHistory();
+  renderAll();
+});
 el('modal-close').addEventListener('click', closeModal);
 el('modal-cancel').addEventListener('click', closeModal);
 el('modal-overlay').addEventListener('click', (e) => { if (e.target === el('modal-overlay')) closeModal(); });
@@ -412,23 +577,32 @@ el('btn-generate').addEventListener('click', () => {
     alert('Marcá al menos 2 jugadores disponibles en la pestaña Partido.');
     return;
   }
+  recordMatch(state.teams);
   renderTeams();
+  renderHistory();
+  renderPlayers();
 });
 
 el('btn-reshuffle').addEventListener('click', () => {
   state.teams = generateTeams();
+  recordMatch(state.teams);
   renderTeams();
+  renderHistory();
+  renderPlayers();
 });
 
 el('btn-share').addEventListener('click', () => {
   const { negro, blanco } = state.teams;
   const totalNegro = negro.reduce((s, p) => s + totalScore(p), 0);
   const totalBlanco = blanco.reduce((s, p) => s + totalScore(p), 0);
-  const text = [
-    `⚫ Negro (Σ${totalNegro}): ${negro.map(p => p.name).join(', ')}`,
-    `⚪ Blanco (Σ${totalBlanco}): ${blanco.map(p => p.name).join(', ')}`,
-  ].join('\n');
-  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  const lines = [
+    `👕⚫ *Negro* (${negro.length} jugadores)`,
+    ...negro.map(p => `▪ ${p.name}`),
+    ``,
+    `👕⚪ *Blanco* (${blanco.length} jugadores)`,
+    ...blanco.map(p => `▪ ${p.name}`),
+  ];
+  window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
 });
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
@@ -528,43 +702,81 @@ function extractWspName(line) {
     .trim();
 }
 
+function nameWords(s) {
+  return normName(s).split(' ').filter(Boolean);
+}
+
+function getMatchScore(search, playerName) {
+  const s = normName(search);
+  const p = normName(playerName);
+  if (!s || !p) return -1;
+  if (s === p) return 1000;
+
+  const sWords = nameWords(search);
+  const pWords = nameWords(playerName);
+
+  if (s.startsWith(p) || p.startsWith(s)) {
+    return 900 - Math.abs(s.length - p.length);
+  }
+
+  let exactMatches = 0;
+  let prefixMatches = 0;
+  let initialMatches = 0;
+
+  for (const sw of sWords) {
+    if (sw.length === 1) {
+      if (pWords.some(pw => pw.startsWith(sw))) initialMatches++;
+      continue;
+    }
+
+    if (pWords.some(pw => pw === sw)) {
+      exactMatches++;
+      continue;
+    }
+
+    if (pWords.some(pw => pw.startsWith(sw) || sw.startsWith(pw))) {
+      prefixMatches++;
+    }
+  }
+
+  const matchedWords = exactMatches + prefixMatches + initialMatches;
+  if (!matchedWords) return -1;
+  if (sWords.length > 1 && matchedWords < sWords.length) return -1;
+  if (sWords.length === 1 && exactMatches === 0 && prefixMatches === 0) return -1;
+
+  const dist = levenshtein(s, p);
+  return 700 + exactMatches * 30 + prefixMatches * 15 + initialMatches * 10 - dist;
+}
+
 function matchPlayer(search, used = new Set()) {
   const s = normName(search);
   if (!s) return null;
   const candidates = state.players.filter(p => !used.has(p.id));
 
-  // 1. exact
-  let m = candidates.find(p => normName(p.name) === s);
-  if (m) return m;
-
-  // 2. starts-with (either direction)
-  m = candidates.find(p => {
-    const n = normName(p.name);
-    return n.startsWith(s) || s.startsWith(n);
-  });
-  if (m) return m;
-
-  // 3. any meaningful word from search appears in player name (skip 1-char words)
-  const sWords = s.split(' ').filter(w => w.length > 1);
-  if (sWords.length) {
-    m = candidates.find(p => {
-      const pWords = normName(p.name).split(' ');
-      return sWords.some(sw => pWords.some(pw => pw === sw || pw.startsWith(sw)));
-    });
-    if (m) return m;
-  }
-
-  // 4. fuzzy (levenshtein ≤ 2, only for short names)
-  if (s.length >= 4) {
-    let best = null, bestDist = 3;
-    for (const p of candidates) {
-      const dist = levenshtein(s, normName(p.name));
-      if (dist < bestDist) { best = p; bestDist = dist; }
+  let best = null;
+  let bestScore = -1;
+  for (const player of candidates) {
+    const score = getMatchScore(search, player.name);
+    if (score > bestScore) {
+      best = player;
+      bestScore = score;
     }
-    if (best) return best;
+  }
+  if (best) return best;
+
+  if (s.length < 4 || nameWords(search).length !== 1) return null;
+
+  let closest = null;
+  let closestDist = 3;
+  for (const player of candidates) {
+    const dist = levenshtein(s, normName(player.name));
+    if (dist < closestDist) {
+      closest = player;
+      closestDist = dist;
+    }
   }
 
-  return null;
+  return closest;
 }
 
 function parseWspList(text) {
@@ -649,6 +861,13 @@ function handleUrlParam() {
   }
 }
 
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 const DATA_VERSION = 'v5';
 load();
@@ -661,3 +880,4 @@ if (localStorage.getItem('futbol7_v') !== DATA_VERSION) {
 ensureDefaultPlayers();
 renderAll();
 handleUrlParam();
+registerServiceWorker();

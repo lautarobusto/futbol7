@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fútbol 7</title>
+  <meta name="theme-color" content="#0d1117">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,7 +16,9 @@
       <button class="tab active" data-tab="jugadores">Jugadores</button>
       <button class="tab" data-tab="partido">Partido</button>
       <button class="tab" data-tab="equipos">Equipos</button>
+      <button class="tab" data-tab="historial">Historial</button>
     </nav>
+    <button class="btn btn-ghost admin-toggle" id="btn-admin-toggle" aria-pressed="false" title="Modo admin">🔒</button>
   </header>
 
   <main>
@@ -23,7 +27,10 @@
     <section id="tab-jugadores" class="tab-content active">
       <div class="bar">
         <span id="player-count" class="muted">0 jugadores</span>
-        <button class="btn btn-primary" id="btn-add-player">+ Jugador</button>
+        <div class="bar-actions">
+          <button class="btn btn-ghost" id="btn-sort-players">Orden: puntaje</button>
+          <button class="btn btn-primary" id="btn-add-player">+ Jugador</button>
+        </div>
       </div>
       <div id="players-list"></div>
     </section>
@@ -56,6 +63,15 @@
         <span id="teams-count" class="muted"></span>
       </div>
       <div id="teams-display"></div>
+    </section>
+
+    <!-- Tab: Historial -->
+    <section id="tab-historial" class="tab-content">
+      <div class="bar">
+        <span id="history-count" class="muted">0 partidos guardados</span>
+        <button class="btn btn-ghost" id="btn-clear-history">Borrar historial</button>
+      </div>
+      <div id="history-list"></div>
     </section>
 
   </main>
