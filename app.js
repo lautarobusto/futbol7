@@ -371,28 +371,21 @@ document.addEventListener('keydown', (e) => {
 
 // ── Default players ────────────────────────────────────────────────────────
 const DEFAULT_PLAYERS = [
-  // gambeta → control alto
-  { name: 'David',          control: 8, fisica: 6, velocidad: 7 },
-  { name: 'Seba',           control: 8, fisica: 6, velocidad: 7 },
-  { name: 'Emiliano',       control: 8, fisica: 6, velocidad: 7 },
-  // delantero → velocidad alta
-  { name: 'fafafa',         control: 6, fisica: 6, velocidad: 8 },
-  { name: 'Roger',          control: 6, fisica: 6, velocidad: 8 },
-  { name: 'Damian N',       control: 6, fisica: 6, velocidad: 8 },
-  { name: 'Rodrigo (Chori)',control: 6, fisica: 6, velocidad: 8 },
-  // medio/defensa → físico alto
-  { name: 'JP',             control: 6, fisica: 7, velocidad: 6 },
-  { name: 'Chino',          control: 6, fisica: 7, velocidad: 6 },
-  { name: 'Cata',           control: 6, fisica: 7, velocidad: 6 },
-  // defensa → físico alto
-  { name: 'Pablo E.',       control: 5, fisica: 8, velocidad: 6 },
-  // medio/físico
-  { name: 'Christian Damián', control: 5, fisica: 9, velocidad: 6 },
-  // mixto / medio → todo parejo
-  { name: 'Vlad',           control: 6, fisica: 6, velocidad: 6 },
-  { name: 'Gabriel N.',     control: 6, fisica: 6, velocidad: 6 },
-  // sin rol conocido → default parejo
-  { name: 'El Chato',       control: 6, fisica: 6, velocidad: 6 },
+  { name: 'David',             control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Seba',             control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Emiliano',         control: 6, fisica: 6, velocidad: 6 },
+  { name: 'fafafa',           control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Roger',            control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Damian N',         control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Rodrigo (Chori)',  control: 6, fisica: 6, velocidad: 6 },
+  { name: 'JP',               control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Chino',            control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Cata',             control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Pablo E.',         control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Christian Damián', control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Vlad',             control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Gabriel N.',       control: 6, fisica: 6, velocidad: 6 },
+  { name: 'El Chato',         control: 6, fisica: 6, velocidad: 6 },
   { name: 'Dan',            control: 6, fisica: 6, velocidad: 6 },
   { name: 'Gerardo R.',     control: 6, fisica: 6, velocidad: 6 },
   { name: 'Pepi',           control: 6, fisica: 6, velocidad: 6 },
