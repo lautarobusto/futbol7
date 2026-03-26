@@ -428,12 +428,7 @@ el('btn-share').addEventListener('click', () => {
     `⚫ Negro (Σ${totalNegro}): ${negro.map(p => p.name).join(', ')}`,
     `⚪ Blanco (Σ${totalBlanco}): ${blanco.map(p => p.name).join(', ')}`,
   ].join('\n');
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = el('btn-share');
-    const prev = btn.textContent;
-    btn.textContent = '¡Copiado!';
-    setTimeout(() => { btn.textContent = prev; }, 2000);
-  });
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 });
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────

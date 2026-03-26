@@ -115,6 +115,13 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
 }
 .btn-secondary:hover { background: var(--surface); border-color: var(--muted); }
 
+.btn-wsp {
+  background: #25d366;
+  color: #fff;
+  border-color: #25d366;
+}
+.btn-wsp:hover { background: #20b858; border-color: #20b858; }
+
 .btn-ghost {
   background: transparent;
   color: var(--muted);
