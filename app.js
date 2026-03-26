@@ -488,6 +488,30 @@ function normName(s) {
     .trim();
 }
 
+function sanitizeWspLine(line) {
+  return line
+    .normalize('NFC')
+    .replace(/[\u2000-\u200F\u202A-\u202E\u2060\uFEFF]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractWspName(line) {
+  const clean = sanitizeWspLine(line);
+  if (!clean) return '';
+  if (/^suplentes\b/i.test(clean)) return '';
+
+  const numbered = clean.match(/^[^\p{L}\p{N}]*\d+\s*[.)-]?[^\p{L}\p{N}]*\s*(.+)$/u);
+  if (!numbered) return '';
+
+  return numbered[1]
+    .replace(/^[^\p{L}\p{N}]+/u, '')
+    .replace(/[\u2066-\u2069]/g, '')
+    .replace(/[^\p{L}\p{N}.\s]+$/u, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function matchPlayer(search) {
   const s = normName(search);
   if (!s) return null;
@@ -529,11 +553,8 @@ function matchPlayer(search) {
 function parseWspList(text) {
   const names = [];
   for (const line of text.split('\n')) {
-    const clean = line.replace(/[\u200B-\u200F\u2060\uFEFF]/g, '').trim();
-    if (/^\d+/.test(clean)) {                       // solo líneas con número
-      const name = clean.replace(/^\d+\s*\.?\s*/, '').trim();
-      if (name) names.push(name);
-    }
+    const name = extractWspName(line);
+    if (name) names.push(name);
   }
   return names;
 }
