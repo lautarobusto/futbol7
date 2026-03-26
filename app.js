@@ -2,6 +2,11 @@
 
 const STORAGE_KEY = 'futbol7_players';
 
+// Jugadores que NO pueden ir en el mismo equipo
+const CONSTRAINTS = [
+  ['Chino', 'JP'],
+];
+
 // ── State ─────────────────────────────────────────────────────────────────
 const state = {
   players: [],       // { id, name, control, fisica, velocidad } — persisted
@@ -76,7 +81,40 @@ function generateTeams() {
     toNegro ? negro.push(p) : blanco.push(p);
   });
 
+  enforceConstraints({ negro, blanco });
   return { negro, blanco };
+}
+
+// ── Constraints ────────────────────────────────────────────────────────────
+function enforceConstraints(teams) {
+  const { negro, blanco } = teams;
+  const all = [...negro, ...blanco];
+
+  for (const [nameA, nameB] of CONSTRAINTS) {
+    const pA = all.find(p => normName(p.name) === normName(nameA));
+    const pB = all.find(p => normName(p.name) === normName(nameB));
+    if (!pA || !pB) continue;
+
+    const aInNegro = negro.includes(pA);
+    const bInNegro = negro.includes(pB);
+    if (aInNegro !== bInNegro) continue; // ya en equipos distintos, ok
+
+    // Ambos en el mismo equipo: swap pB con el jugador más cercano en puntaje del otro equipo
+    const sameTeam  = aInNegro ? negro : blanco;
+    const otherTeam = aInNegro ? blanco : negro;
+
+    let bestSwap = null, bestDiff = Infinity;
+    for (const p of otherTeam) {
+      if (p === pA || p === pB) continue;
+      const diff = Math.abs(totalScore(p) - totalScore(pB));
+      if (diff < bestDiff) { bestSwap = p; bestDiff = diff; }
+    }
+
+    if (bestSwap) {
+      sameTeam[sameTeam.indexOf(pB)]       = bestSwap;
+      otherTeam[otherTeam.indexOf(bestSwap)] = pB;
+    }
+  }
 }
 
 // ── Render: Jugadores tab ──────────────────────────────────────────────────
@@ -398,7 +436,7 @@ const DEFAULT_PLAYERS = [
   { name: 'fafafa',           control: 6, fisica: 6, velocidad: 6 },
   { name: 'Roger',            control: 6, fisica: 6, velocidad: 6 },
   { name: 'Damian N',         control: 6, fisica: 6, velocidad: 6 },
-  { name: 'Rodrigo (Chori)',  control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Chori',            control: 6, fisica: 6, velocidad: 6 },
   { name: 'JP',               control: 6, fisica: 6, velocidad: 6 },
   { name: 'Chino',            control: 6, fisica: 6, velocidad: 6 },
   { name: 'Cata',             control: 6, fisica: 6, velocidad: 6 },
@@ -412,7 +450,7 @@ const DEFAULT_PLAYERS = [
   { name: 'Pepi',           control: 6, fisica: 6, velocidad: 6 },
   { name: 'Julio',          control: 6, fisica: 6, velocidad: 6 },
   { name: 'Raúl',           control: 6, fisica: 6, velocidad: 6 },
-  { name: 'Rodrigo V.',     control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Rodri',          control: 6, fisica: 6, velocidad: 6 },
   { name: 'Darío',          control: 6, fisica: 6, velocidad: 6 },
   { name: 'Parse',          control: 6, fisica: 6, velocidad: 6 },
   { name: 'Fran',           control: 6, fisica: 6, velocidad: 6 },
@@ -440,9 +478,10 @@ function levenshtein(a, b) {
 
 function normName(s) {
   return s
-    .normalize('NFC')             // unify accent encoding (WhatsApp vs literal)
-    .replace(/[\u200B-\u200F\u2060\uFEFF]/g, '') // strip invisible chars
+    .normalize('NFC')
+    .replace(/[\u200B-\u200F\u2060\uFEFF]/g, '')  // invisible chars
     .toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents (á→a, etc.)
     .replace(/\.$/, '')           // trailing dot
     .replace(/\(.*?\)/g, '')      // anything in parens
     .replace(/\s+/g, ' ')
@@ -464,13 +503,15 @@ function matchPlayer(search) {
   });
   if (m) return m;
 
-  // 3. any word from search appears in player name
-  const sWords = s.split(' ');
-  m = state.players.find(p => {
-    const pWords = normName(p.name).split(' ');
-    return sWords.some(sw => pWords.some(pw => pw === sw || pw.startsWith(sw)));
-  });
-  if (m) return m;
+  // 3. any meaningful word from search appears in player name (skip 1-char words)
+  const sWords = s.split(' ').filter(w => w.length > 1);
+  if (sWords.length) {
+    m = state.players.find(p => {
+      const pWords = normName(p.name).split(' ');
+      return sWords.some(sw => pWords.some(pw => pw === sw || pw.startsWith(sw)));
+    });
+    if (m) return m;
+  }
 
   // 4. fuzzy (levenshtein ≤ 2, only for short names)
   if (s.length >= 4) {
@@ -556,7 +597,7 @@ function handleUrlParam() {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
-const DATA_VERSION = 'v3';
+const DATA_VERSION = 'v4';
 load();
 if (localStorage.getItem('futbol7_v') !== DATA_VERSION) {
   // Force reseed: fixes any players with old scores
