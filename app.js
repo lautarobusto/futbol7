@@ -16,6 +16,7 @@ const state = {
   history: [],
   teams: null,       // { negro: [], blanco: [] } | null
   editing: null,     // player id being edited, or null
+  editingMatch: null,
   isGuest: false,    // is the modal adding a guest?
   activeTab: 'jugadores',
   playerSort: 'score',
@@ -173,6 +174,18 @@ function recordMatch(teams, extra = {}) {
   saveHistory();
 }
 
+function updateHistoryMatch(matchId, patch) {
+  const index = state.history.findIndex(match => match.id === matchId);
+  if (index === -1) return false;
+
+  state.history[index] = {
+    ...state.history[index],
+    ...patch,
+  };
+  saveHistory();
+  return true;
+}
+
 function getAttendanceCounts() {
   const counts = new Map();
 
@@ -283,22 +296,21 @@ function renderMatch() {
 // ── Render: Equipos tab ────────────────────────────────────────────────────
 function renderTeams() {
   const display = el('teams-display');
-  const reshuffleBtn = el('btn-reshuffle');
   const saveMatchBtn = el('btn-save-match');
+  const feedback = el('teams-feedback');
 
   if (!state.teams) {
-    reshuffleBtn.style.display = 'none';
     saveMatchBtn.style.display = 'none';
     el('btn-share').style.display = 'none';
+    feedback.textContent = '';
     const total = state.available.size + state.guests.length;
     display.innerHTML = total < 2
       ? `<div class="empty-state">Marcá quiénes vienen en la pestaña Partido y después armá los equipos.</div>`
-      : `<div class="empty-state">${total} jugadores listos. Presioná "Armar equipos".</div>`;
+      : `<div class="empty-state">${total} jugadores listos. Pegá la lista o armá el partido desde la pestaña Partido.</div>`;
     el('teams-count').textContent = '';
     return;
   }
 
-  reshuffleBtn.style.display = '';
   saveMatchBtn.style.display = '';
   el('btn-share').style.display = '';
 
@@ -357,30 +369,30 @@ function renderHistory() {
   }
 
   list.className = 'history-list';
-  const balanceLabel = (value) => ({
-    balanced: 'Estuvo balanceado',
-    negro_better: 'Negro fue mucho mejor',
-    blanco_better: 'Blanco fue mucho mejor',
-    very_unbalanced: 'Muy desbalanceado en general',
-  }[value] || '');
+  const BALANCE_LABELS = {
+    balanced: 'Balanceado',
+    negro_better: 'Negro dominó',
+    blanco_better: 'Blanco dominó',
+    very_unbalanced: 'Muy desbalanceado',
+  };
   list.innerHTML = state.history.slice(0, 20).map(match => `
-    <article class="history-card">
+    <article class="history-card${match.golesNegro == null || match.golesBlanco == null ? ' pending' : ''}" data-action="edit-match" data-id="${match.id}">
       <div class="history-head">
         <div class="history-date">${esc(match.dateLabel || match.date || '')}</div>
         <div class="history-score">${match.golesNegro != null && match.golesBlanco != null
           ? `Negro ${match.golesNegro} - Blanco ${match.golesBlanco}`
-          : `Negro ${match.totalNegro} - Blanco ${match.totalBlanco}`
+          : 'Sin resultado'
         }</div>
       </div>
-      ${match.balance ? `<div class="history-balance">${esc(balanceLabel(match.balance))}</div>` : ''}
+      ${match.balance ? `<div class="history-balance">${esc(BALANCE_LABELS[match.balance] || '')}</div>` : ''}
       <div class="history-teams">
         <div class="history-team">
-          <strong>Negro (${match.negro.length})</strong>
-          <div>${esc(match.negro.map(p => p.name).join(', '))}</div>
+          <strong>Negro (${(match.negro || []).length})</strong>
+          <div>${esc((match.negro || []).map(p => p.name).join(', '))}</div>
         </div>
         <div class="history-team">
-          <strong>Blanco (${match.blanco.length})</strong>
-          <div>${esc(match.blanco.map(p => p.name).join(', '))}</div>
+          <strong>Blanco (${(match.blanco || []).length})</strong>
+          <div>${esc((match.blanco || []).map(p => p.name).join(', '))}</div>
         </div>
       </div>
     </article>
@@ -428,16 +440,18 @@ function closeModal() {
   el('player-form').reset();
 }
 
-function openSaveMatchModal() {
-  if (!state.teams) return;
-  el('input-goals-negro').value = '';
-  el('input-goals-blanco').value = '';
-  el('input-balance').value = 'balanced';
+function openSaveMatchModal(match) {
+  if (!match) return;
+  state.editingMatch = match.id;
+  el('input-goals-negro').value = match.golesNegro ?? '';
+  el('input-goals-blanco').value = match.golesBlanco ?? '';
+  el('input-balance').value = match.balance ?? 'balanced';
   el('save-match-overlay').classList.remove('hidden');
 }
 
 function closeSaveMatchModal() {
   el('save-match-overlay').classList.add('hidden');
+  state.editingMatch = null;
   el('save-match-form').reset();
 }
 
@@ -484,6 +498,12 @@ document.addEventListener('click', (e) => {
     }
     renderTeams();
     return;
+  }
+
+  if (action === 'edit-match') {
+    const match = state.history.find(item => item.id === id);
+    if (!match) return;
+    openSaveMatchModal(match);
   }
 });
 
@@ -551,12 +571,12 @@ el('player-form').addEventListener('submit', (e) => {
 
 el('save-match-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  if (!state.teams) return;
+  if (!state.editingMatch) return;
 
   const rawNegro = el('input-goals-negro').value.trim();
   const rawBlanco = el('input-goals-blanco').value.trim();
 
-  recordMatch(state.teams, {
+  updateHistoryMatch(state.editingMatch, {
     golesNegro: rawNegro === '' ? null : parseInt(rawNegro, 10),
     golesBlanco: rawBlanco === '' ? null : parseInt(rawBlanco, 10),
     balance: el('input-balance').value,
@@ -593,26 +613,22 @@ el('btn-clear-history').addEventListener('click', () => {
 el('modal-close').addEventListener('click', closeModal);
 el('modal-cancel').addEventListener('click', closeModal);
 el('modal-overlay').addEventListener('click', (e) => { if (e.target === el('modal-overlay')) closeModal(); });
-el('btn-save-match').addEventListener('click', openSaveMatchModal);
+el('btn-save-match').addEventListener('click', () => {
+  if (!state.teams) return;
+  recordMatch(state.teams, {
+    golesNegro: null,
+    golesBlanco: null,
+    balance: null,
+  });
+  el('teams-feedback').innerHTML = `<span class="ok">✓ Partido guardado. Cargá el resultado después del partido.</span>`;
+  renderHistory();
+  renderPlayers();
+});
 el('save-match-close').addEventListener('click', closeSaveMatchModal);
 el('save-match-cancel').addEventListener('click', closeSaveMatchModal);
 el('save-match-overlay').addEventListener('click', (e) => { if (e.target === el('save-match-overlay')) closeSaveMatchModal(); });
 
 el('btn-parse-list').addEventListener('click', loadWspList);
-
-el('btn-generate').addEventListener('click', () => {
-  state.teams = generateTeams();
-  if (!state.teams) {
-    alert('Marcá al menos 2 jugadores disponibles en la pestaña Partido.');
-    return;
-  }
-  renderTeams();
-});
-
-el('btn-reshuffle').addEventListener('click', () => {
-  state.teams = generateTeams();
-  renderTeams();
-});
 
 el('btn-share').addEventListener('click', () => {
   const { negro, blanco } = state.teams;
