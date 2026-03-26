@@ -439,7 +439,10 @@ function levenshtein(a, b) {
 }
 
 function normName(s) {
-  return s.toLowerCase().trim()
+  return s
+    .normalize('NFC')             // unify accent encoding (WhatsApp vs literal)
+    .replace(/[\u200B-\u200F\u2060\uFEFF]/g, '') // strip invisible chars
+    .toLowerCase().trim()
     .replace(/\.$/, '')           // trailing dot
     .replace(/\(.*?\)/g, '')      // anything in parens
     .replace(/\s+/g, ' ')
@@ -485,11 +488,15 @@ function matchPlayer(search) {
 function parseWspList(text) {
   return text.split('\n')
     .map(line => line
-      .replace(/\u2060/g, '')          // invisible word joiner (WhatsApp)
-      .replace(/^\s*\d+\s*\.?\s*/, '') // strip leading number + dot
+      .replace(/[\u200B-\u200F\u2060\uFEFF]/g, '') // all invisible chars
+      .replace(/^\s*\d+\s*\.?\s*/, '')              // strip "1." / "1 ." / "10."
       .trim()
     )
-    .filter(line => line && !/^\w+\s+\d+\/\d+$/i.test(line)); // skip date lines
+    .filter(line =>
+      line &&
+      !/^\w+\s+\d+\/\d+$/i.test(line) &&           // skip "Jueves 26/03"
+      !/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)/i.test(line)
+    );
 }
 
 function loadWspList() {
