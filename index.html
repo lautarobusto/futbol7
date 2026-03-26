@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fútbol 7</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <span class="header-title">⚽ Fútbol 7</span>
+    <nav class="tabs">
+      <button class="tab active" data-tab="jugadores">Jugadores</button>
+      <button class="tab" data-tab="partido">Partido</button>
+      <button class="tab" data-tab="equipos">Equipos</button>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- Tab: Jugadores -->
+    <section id="tab-jugadores" class="tab-content active">
+      <div class="bar">
+        <span id="player-count" class="muted">0 jugadores</span>
+        <button class="btn btn-primary" id="btn-add-player">+ Jugador</button>
+      </div>
+      <div id="players-list"></div>
+    </section>
+
+    <!-- Tab: Partido -->
+    <section id="tab-partido" class="tab-content">
+      <div class="bar">
+        <span id="match-count" class="muted">0 disponibles</span>
+        <button class="btn btn-secondary" id="btn-add-guest">+ Invitado</button>
+      </div>
+      <div id="match-list"></div>
+    </section>
+
+    <!-- Tab: Equipos -->
+    <section id="tab-equipos" class="tab-content">
+      <div class="bar">
+        <div class="bar-actions">
+          <button class="btn btn-primary" id="btn-generate">Armar equipos</button>
+          <button class="btn btn-ghost" id="btn-reshuffle" style="display:none">Re-mezclar</button>
+        </div>
+        <span id="teams-count" class="muted"></span>
+      </div>
+      <div id="teams-display"></div>
+    </section>
+
+  </main>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Jugador</h2>
+        <button class="modal-close" id="modal-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <form id="player-form" autocomplete="off">
+        <div class="form-group">
+          <label for="input-name">Nombre</label>
+          <input type="text" id="input-name" placeholder="Nombre del jugador" required maxlength="32">
+        </div>
+        <div class="form-group">
+          <div class="metric-label">
+            <label for="input-control">Control</label>
+            <span class="metric-value" id="val-control">5</span>
+          </div>
+          <input type="range" id="input-control" min="1" max="10" value="5">
+        </div>
+        <div class="form-group">
+          <div class="metric-label">
+            <label for="input-fisica">Estado físico</label>
+            <span class="metric-value" id="val-fisica">5</span>
+          </div>
+          <input type="range" id="input-fisica" min="1" max="10" value="5">
+        </div>
+        <div class="form-group">
+          <div class="metric-label">
+            <label for="input-velocidad">Velocidad</label>
+            <span class="metric-value" id="val-velocidad">5</span>
+          </div>
+          <input type="range" id="input-velocidad" min="1" max="10" value="5">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="modal-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
