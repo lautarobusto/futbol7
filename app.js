@@ -2,6 +2,7 @@
 
 const STORAGE_KEY = 'futbol7_players';
 const HISTORY_KEY = 'futbol7_history';
+const PLAYER_STATS_KEY = 'futbol7_player_stats';
 
 // Jugadores que NO pueden ir en el mismo equipo
 const CONSTRAINTS = [
@@ -45,9 +46,16 @@ function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'
 
 // ── Persistence ────────────────────────────────────────────────────────────
 function load() {
+  const statsStore = loadPlayerStats();
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) state.players = JSON.parse(raw);
+    if (raw) {
+      state.players = JSON.parse(raw).map(player => ({
+        ...player,
+        ...getStoredStats(player?.name, statsStore),
+      }));
+    }
   } catch { state.players = []; }
 
   try {
@@ -58,6 +66,7 @@ function load() {
 
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.players));
+  localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(buildPlayerStatsStore(state.players)));
 }
 
 function saveHistory() {
@@ -66,15 +75,51 @@ function saveHistory() {
 
 function ensureDefaultPlayers() {
   const existing = new Set(state.players.map(p => normName(p.name)));
+  const statsStore = loadPlayerStats();
   let changed = false;
 
   for (const player of DEFAULT_PLAYERS) {
     if (existing.has(normName(player.name))) continue;
-    state.players.push({ id: uid(), ...player });
+    state.players.push({ id: uid(), ...player, ...getStoredStats(player.name, statsStore) });
     changed = true;
   }
 
   if (changed) save();
+}
+
+function buildPlayerStatsStore(players) {
+  const store = {};
+  for (const player of players) {
+    const key = normName(player?.name || '');
+    if (!key) continue;
+    store[key] = {
+      control: Number.isFinite(player.control) ? player.control : 6,
+      fisica: Number.isFinite(player.fisica) ? player.fisica : 6,
+      velocidad: Number.isFinite(player.velocidad) ? player.velocidad : 6,
+    };
+  }
+  return store;
+}
+
+function loadPlayerStats() {
+  try {
+    const raw = localStorage.getItem(PLAYER_STATS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function getStoredStats(name, statsStore = loadPlayerStats()) {
+  const stats = statsStore[normName(name || '')];
+  if (!stats || typeof stats !== 'object') return {};
+
+  return {
+    control: Number.isFinite(stats.control) ? stats.control : 6,
+    fisica: Number.isFinite(stats.fisica) ? stats.fisica : 6,
+    velocidad: Number.isFinite(stats.velocidad) ? stats.velocidad : 6,
+  };
 }
 
 // ── Algorithm ──────────────────────────────────────────────────────────────
@@ -911,13 +956,9 @@ function registerServiceWorker() {
 // ── Init ───────────────────────────────────────────────────────────────────
 const DATA_VERSION = 'v5';
 load();
-if (localStorage.getItem('futbol7_v') !== DATA_VERSION) {
-  // Force reseed: fixes any players with old scores
-  state.players = DEFAULT_PLAYERS.map(p => ({ id: uid(), ...p }));
-  save();
-  localStorage.setItem('futbol7_v', DATA_VERSION);
-}
 ensureDefaultPlayers();
+localStorage.setItem('futbol7_v', DATA_VERSION);
+save();
 renderAll();
 handleUrlParam();
 registerServiceWorker();
