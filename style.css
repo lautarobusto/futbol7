@@ -57,17 +57,6 @@ header {
 
 .tabs::-webkit-scrollbar { display: none; }
 
-.admin-toggle {
-  padding: 6px 10px;
-  flex-shrink: 0;
-}
-
-.admin-toggle.is-admin {
-  color: var(--primary);
-  background: rgba(88,166,255,0.12);
-  border-color: rgba(88,166,255,0.28);
-}
-
 .tab {
   background: none;
   border: none;
@@ -238,11 +227,6 @@ main { max-width: 640px; margin: 0 auto; padding: 16px; }
   flex-shrink: 0;
 }
 
-body.locked .row-actions,
-body.locked #btn-add-player {
-  display: none;
-}
-
 /* ── Match row (partido tab) ── */
 .match-row {
   display: flex;
@@ -302,7 +286,6 @@ body.locked #btn-add-player {
   .teams-grid { grid-template-columns: 1fr; }
   .metrics { display: none; }
   header { gap: 10px; }
-  .admin-toggle { padding: 6px 8px; }
   .player-row { align-items: flex-start; }
   .player-meta { width: 100%; }
 }
@@ -457,10 +440,6 @@ body.locked #btn-add-player {
 .history-team strong {
   display: block;
   margin-bottom: 4px;
-}
-
-.admin-note {
-  margin-top: 8px;
 }
 
 /* ── Empty state ── */

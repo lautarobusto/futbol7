@@ -2,7 +2,6 @@
 
 const STORAGE_KEY = 'futbol7_players';
 const HISTORY_KEY = 'futbol7_history';
-const ADMIN_KEY = 'futbol7_admin';
 
 // Jugadores que NO pueden ir en el mismo equipo
 const CONSTRAINTS = [
@@ -18,7 +17,6 @@ const state = {
   teams: null,       // { negro: [], blanco: [] } | null
   editing: null,     // player id being edited, or null
   isGuest: false,    // is the modal adding a guest?
-  isAdmin: false,
   activeTab: 'jugadores',
   playerSort: 'score',
 };
@@ -55,8 +53,6 @@ function load() {
     const rawHistory = localStorage.getItem(HISTORY_KEY);
     state.history = rawHistory ? JSON.parse(rawHistory) : [];
   } catch { state.history = []; }
-
-  state.isAdmin = sessionStorage.getItem(ADMIN_KEY) === '1';
 }
 
 function save() {
@@ -65,10 +61,6 @@ function save() {
 
 function saveHistory() {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history.slice(0, 20)));
-}
-
-function saveAdminState() {
-  sessionStorage.setItem(ADMIN_KEY, state.isAdmin ? '1' : '0');
 }
 
 function ensureDefaultPlayers() {
@@ -232,12 +224,12 @@ function renderPlayers() {
         <span class="metric-chip">V <span>${p.velocidad}</span></span>
       </div>
       <span class="player-score">${totalScore(p)}</span>
-      <div class="row-actions" ${state.isAdmin ? '' : 'hidden'}>
+      <div class="row-actions">
         <button class="btn-icon" title="Editar" data-action="edit" data-id="${p.id}">✏️</button>
         <button class="btn-icon btn-danger" title="Eliminar" data-action="delete" data-id="${p.id}">✕</button>
       </div>
     </div>
-  `).join('') + (!state.isAdmin ? `<p class="muted admin-note">Modo lectura. Activá el candado para editar o borrar jugadores.</p>` : '');
+  `).join('');
 }
 
 // ── Render: Partido tab ────────────────────────────────────────────────────
@@ -376,14 +368,6 @@ function renderHistory() {
   `).join('');
 }
 
-function updateAdminUI() {
-  el('btn-admin-toggle').textContent = state.isAdmin ? '🔓' : '🔒';
-  el('btn-admin-toggle').setAttribute('aria-pressed', String(state.isAdmin));
-  el('btn-admin-toggle').classList.toggle('is-admin', state.isAdmin);
-  document.body.classList.toggle('locked', !state.isAdmin);
-  el('btn-add-player').hidden = !state.isAdmin;
-}
-
 function setActiveTab(target) {
   state.activeTab = target;
   document.querySelectorAll('.tab').forEach(tab => {
@@ -395,7 +379,6 @@ function setActiveTab(target) {
 }
 
 function renderAll() {
-  updateAdminUI();
   renderPlayers();
   renderMatch();
   renderTeams();
@@ -432,14 +415,12 @@ document.addEventListener('click', (e) => {
   const id = e.target.closest('[data-id]')?.dataset.id;
 
   if (action === 'edit') {
-    if (!state.isAdmin) return;
     const player = state.players.find(p => p.id === id);
     if (player) openModal({ title: 'Editar jugador', player });
     return;
   }
 
   if (action === 'delete') {
-    if (!state.isAdmin) return;
     if (!confirm(`¿Eliminar a ${state.players.find(p => p.id === id)?.name}?`)) return;
     state.players = state.players.filter(p => p.id !== id);
     state.available.delete(id);
@@ -506,11 +487,6 @@ el('player-form').addEventListener('submit', (e) => {
     return;
   }
 
-  if (!state.isAdmin) {
-    closeModal();
-    return;
-  }
-
   if (state.editing) {
     const idx = state.players.findIndex(p => p.id === state.editing);
     if (idx !== -1) state.players[idx] = { ...state.players[idx], ...data };
@@ -531,10 +507,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 
 // ── Button wiring ──────────────────────────────────────────────────────────
-el('btn-add-player').addEventListener('click', () => {
-  if (!state.isAdmin) return;
-  openModal({ title: 'Nuevo jugador' });
-});
+el('btn-add-player').addEventListener('click', () => openModal({ title: 'Nuevo jugador' }));
 el('btn-sort-players').addEventListener('click', () => {
   state.playerSort = state.playerSort === 'score'
     ? 'attendance'
@@ -544,20 +517,6 @@ el('btn-sort-players').addEventListener('click', () => {
   renderPlayers();
 });
 el('btn-add-guest').addEventListener('click', () => openModal({ isGuest: true }));
-el('btn-admin-toggle').addEventListener('click', () => {
-  if (state.isAdmin) {
-    state.isAdmin = false;
-    saveAdminState();
-    renderAll();
-    return;
-  }
-
-  const pin = window.prompt('PIN admin');
-  if (pin !== '7777') return;
-  state.isAdmin = true;
-  saveAdminState();
-  renderAll();
-});
 el('btn-clear-history').addEventListener('click', () => {
   if (!state.history.length) return;
   if (!confirm('¿Borrar el historial de partidos?')) return;
