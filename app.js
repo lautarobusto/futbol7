@@ -552,14 +552,12 @@ el('btn-reshuffle').addEventListener('click', () => {
 
 el('btn-share').addEventListener('click', () => {
   const { negro, blanco } = state.teams;
-  const totalNegro = negro.reduce((s, p) => s + totalScore(p), 0);
-  const totalBlanco = blanco.reduce((s, p) => s + totalScore(p), 0);
   const lines = [
-    `👕⚫ *Negro* (${negro.length} jugadores)`,
-    ...negro.map(p => `▪ ${p.name}`),
+    `=== NEGRO (${negro.length}) ===`,
+    ...negro.map(p => `- ${p.name}`),
     ``,
-    `👕⚪ *Blanco* (${blanco.length} jugadores)`,
-    ...blanco.map(p => `▪ ${p.name}`),
+    `=== BLANCO (${blanco.length}) ===`,
+    ...blanco.map(p => `- ${p.name}`),
   ];
   window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
 });
