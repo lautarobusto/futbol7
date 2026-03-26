@@ -5,6 +5,28 @@ Stack: HTML + CSS + JS vanilla, sin build. Deploy en GitHub Pages (branch `maste
 
 ---
 
+## Workflow
+
+Este proyecto usa dos agentes con roles distintos:
+
+- **Codex** — ejecuta features. Toma una feature del plan, la implementa, commitea y pushea. Una feature por sesión. No empieza la siguiente sin que CC revise.
+- **Claude Code (CC)** — diseña, analiza y revisa. Define el plan, especifica cada feature con el código necesario, y revisa los cambios de Codex antes de aprobarlos.
+
+**Cómo trabaja Codex en este proyecto:**
+1. Leer este archivo completo antes de arrancar
+2. Tomar **una sola feature** (la primera de la lista de prioridad)
+3. Implementarla siguiendo exactamente las instrucciones — sin agregar features extra, sin refactorizar lo que no se pidió
+4. Commitear con mensaje descriptivo y pushear
+5. Detenerse — no continuar con la siguiente feature
+
+**Qué NO hace Codex:**
+- No cambia `generateTeams`, `enforceConstraints`, `parseWspList`, `extractWspName`, `matchPlayer`
+- No cambia la paleta de colores ni las variables CSS
+- No agrega dependencias externas
+- No implementa más de una feature por sesión
+
+---
+
 ## Contexto
 
 App para armar equipos de fútbol 7 (siempre 2 equipos: Negro vs Blanco).
