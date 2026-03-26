@@ -12,11 +12,11 @@ Hay 30 jugadores fijos con 3 métricas (Control, Estado físico, Velocidad, esca
 El flujo principal: pegar la lista de WhatsApp → la app parsea los que vienen → arma equipos balanceados con snake draft.
 
 Archivos:
-- `index.html` — estructura con 3 tabs: Jugadores / Partido / Equipos
+- `index.html` — estructura con tabs: Jugadores / Partido / Equipos / Historial
 - `style.css` — tema oscuro (Void Space palette: `--bg: #0d1117`, `--surface: #161b22`, etc.)
 - `app.js` — toda la lógica: estado, localStorage, snake draft, parser WhatsApp, matching fuzzy
-- `manifest.json` — ⚠️ aún no existe, hay que crearlo
-- `sw.js` — ⚠️ aún no existe, hay que crearlo
+- `manifest.json` — ⚠️ aún no existe
+- `sw.js` — ⚠️ aún no existe
 
 ---
 
@@ -28,7 +28,19 @@ Archivos:
 - Regla: Chino y JP siempre en equipos distintos (`CONSTRAINTS` en `app.js`)
 - Botón compartir por WhatsApp (abre wa.me con el texto pre-armado)
 - Link por jugador para auto-editar stats (`?jugador=Nombre`)
-- `index.html` ya tiene `<link rel="manifest" href="manifest.json">` y `<meta name="theme-color" content="#0d1117">`
+- `index.html` tiene `<link rel="manifest">` y `<meta name="theme-color">`
+- **Modo admin** — botón candado en header, PIN hardcodeado, estado en `sessionStorage`
+  - Sin admin: tab Jugadores es solo lectura (sin ✏️ ni ✕), muestra nota
+  - Con admin: edición completa habilitada
+  - CSS: `.admin-toggle` y `.admin-toggle.is-admin` ya definidos en `style.css`
+- **Historial de partidos** — tab "Historial" con los últimos 20 partidos
+  - Schema: `{ id, date, dateLabel, negro, blanco, totalNegro, totalBlanco }`
+  - Guardado en `localStorage['futbol7_history']`
+  - `recordMatch()` llamado al generar equipos
+- **Conteo de asistencia** — `getAttendanceCounts()` basado en el historial
+  - Badge `X asist.` junto a cada jugador en tab Jugadores
+  - Botón de sort: puntaje / nombre / asistencia
+- **Player sort** — `state.playerSort` con opciones `'score'`, `'name'`, `'attendance'`
 
 ---
 
@@ -53,92 +65,79 @@ Archivos:
 ```
 
 **Íconos**: generar `icon-192.png` y `icon-512.png` — fondo `#0d1117`, emoji ⚽ centrado.
+Podés generarlos con canvas en Node, o usar una herramienta online y commitearlos.
 
 **`sw.js`** (service worker, crear en raíz):
-- Cachear en install: `index.html`, `style.css`, `app.js`, `manifest.json`
-- En fetch: cache-first para archivos propios, network para el resto
-- Nombre del cache: `futbol7-v1`
+```js
+const CACHE = 'futbol7-v1';
+const ASSETS = ['/', '/index.html', '/style.css', '/app.js', '/manifest.json'];
 
-**Registrar el SW** al final de `app.js`:
+self.addEventListener('install', e => e.waitUntil(
+  caches.open(CACHE).then(c => c.addAll(ASSETS))
+));
+
+self.addEventListener('fetch', e => e.respondWith(
+  caches.match(e.request).then(r => r || fetch(e.request))
+));
+```
+
+**Registrar el SW** — ya debería estar al final de `app.js`, verificar que existe:
 ```js
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js');
 }
 ```
 
-**Testear PWA**:
-- Chrome DevTools → Application → Manifest: verificar sin errores
-- Application → Service Workers: verificar que está activo
-- En mobile Chrome: debe aparecer el banner "Agregar a pantalla de inicio"
+**Testear**:
+- Chrome DevTools → Application → Manifest: sin errores
+- Application → Service Workers: activo
+- Mobile Chrome: banner "Agregar a pantalla de inicio"
 
 ---
 
-### 🔲 2. Modo admin — protección de edición
+### 🔲 2. Formato WhatsApp al compartir
 
-**Problema**: en el vestuario alguien puede tocar los sliders y romper las stats de todos.
+El botón de compartir existe y funciona, pero el formato del texto necesita mejora.
 
-**Implementación**:
-- Botón 🔒 en el header (derecha)
-- Click → prompt con PIN. PIN hardcodeado: `"7777"` (cambiar en `app.js`)
-- Si PIN correcto → modo admin activado, ícono cambia a 🔓
-- Estado en `sessionStorage` (se cierra al cerrar la pestaña)
-- **Sin modo admin**: tab "Jugadores" oculta los botones ✏️ y ✕ de cada jugador. El botón "+ Jugador" también se oculta.
-- **Con modo admin**: todo visible como ahora
-
-CSS: agregar clase `.locked` al `<body>` cuando no es admin. Ocultar `.row-actions` y `#btn-add-player` con `.locked .row-actions { display: none }`.
-
----
-
-### 🔲 3. Historial de partidos
-
-**Cuándo guardar**: cada vez que se llama a `generateTeams()` y produce un resultado, guardar en localStorage.
-
-**Schema** (array en `localStorage['futbol7_history']`):
-```js
-[
-  {
-    date: "2026-03-27",          // ISO date
-    negro: ["David", "Seba", ...],
-    blanco: ["Roger", "Chori", ...],
-    scoreNegro: 84,
-    scoreBlanco: 83
-  },
-  ...
-]
+Formato deseado (un jugador por línea, camisetas como header):
 ```
-Guardar máximo 20 entradas. Si supera 20, eliminar la más antigua.
+👕⚫ *Negro* (7 jugadores)
+▪ David
+▪ Seba
+...
 
-**Nuevo tab "Historial"** en `index.html` (4to tab):
-- Lista de partidos ordenados por fecha DESC
-- Cada entrada: fecha + dos columnas Negro / Blanco con los jugadores
-- Botón "Borrar historial" al pie
+👕⚪ *Blanco* (7 jugadores)
+▪ Roger
+▪ Chori
+...
+```
 
----
-
-### 🔲 4. Conteo de asistencia
-
-Derivado del historial. No requiere schema nuevo.
-
-- En `renderPlayers()`, para cada jugador contar cuántas veces aparece en el historial (en negro o blanco)
-- Mostrar el número junto al nombre: badge simple tipo `(5)` o un ícono
-- Agregar botón de sort en el tab Jugadores: "Ordenar por asistencia / por nombre"
+En `app.js`, buscar el listener de `btn-share` y cambiar la construcción del `text`:
+```js
+const lines = [
+  `👕⚫ *Negro* (${negro.length} jugadores)`,
+  ...negro.map(p => `▪ ${p.name}`),
+  ``,
+  `👕⚪ *Blanco* (${blanco.length} jugadores)`,
+  ...blanco.map(p => `▪ ${p.name}`),
+];
+window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+```
 
 ---
 
 ## Notas técnicas para Codex
 
 - **No usar frameworks** — vanilla JS puro, sin npm, sin build
-- **No cambiar la paleta de colores** — usar las variables CSS existentes
-- **No tocar el parser de WhatsApp** — funciones `parseWspList`, `extractWspName`, `matchPlayer` en `app.js`
-- **No tocar el algoritmo de equipos** — `generateTeams` + `enforceConstraints` en `app.js`
-- **Mobile first** — la app se usa en el vestuario, en el celular
-- `DATA_VERSION` en `app.js` actualmente es `'v5'`. Si se modifica el schema de `state.players`, incrementar a `'v6'`
-- Las restricciones de equipo están en `CONSTRAINTS` (array de pares de nombres) al top de `app.js`
+- **No cambiar la paleta de colores** — usar variables CSS existentes
+- **No tocar el parser de WhatsApp** — `parseWspList`, `extractWspName`, `matchPlayer`
+- **No tocar el algoritmo de equipos** — `generateTeams` + `enforceConstraints`
+- **Mobile first** — se usa en el vestuario, en el celular
+- `DATA_VERSION` actualmente `'v5'`. Si se modifica el schema de `state.players`, usar `'v6'`
+- `CONSTRAINTS` al top de `app.js` — pares de nombres que no pueden ir juntos
 - GitHub Pages sirve desde branch `master`, carpeta raíz
 
-## Orden de prioridad sugerido
+## Prioridad restante
 
-1. PWA (impacto inmediato para los jugadores)
-2. Modo admin (evita accidentes)
-3. Historial
-4. Asistencia (depende del historial)
+1. PWA (manifest + sw.js + íconos)
+2. Formato WhatsApp (cambio menor en btn-share listener)
