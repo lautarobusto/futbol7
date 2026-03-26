@@ -160,6 +160,7 @@ function renderTeams() {
 
   if (!state.teams) {
     reshuffleBtn.style.display = 'none';
+    el('btn-share').style.display = 'none';
     const total = state.available.size + state.guests.length;
     display.innerHTML = total < 2
       ? `<div class="empty-state">Marcá quiénes vienen en la pestaña Partido y después armá los equipos.</div>`
@@ -169,6 +170,7 @@ function renderTeams() {
   }
 
   reshuffleBtn.style.display = '';
+  el('btn-share').style.display = '';
 
   const { negro, blanco } = state.teams;
   const totalNegro = negro.reduce((s, p) => s + totalScore(p), 0);
@@ -329,6 +331,7 @@ el('player-form').addEventListener('submit', (e) => {
   state.teams = null;
   save();
   closeModal();
+  history.replaceState({}, '', window.location.pathname);
   renderAll();
 });
 
@@ -362,6 +365,22 @@ el('btn-generate').addEventListener('click', () => {
 el('btn-reshuffle').addEventListener('click', () => {
   state.teams = generateTeams();
   renderTeams();
+});
+
+el('btn-share').addEventListener('click', () => {
+  const { negro, blanco } = state.teams;
+  const totalNegro = negro.reduce((s, p) => s + totalScore(p), 0);
+  const totalBlanco = blanco.reduce((s, p) => s + totalScore(p), 0);
+  const text = [
+    `⚫ Negro (Σ${totalNegro}): ${negro.map(p => p.name).join(', ')}`,
+    `⚪ Blanco (Σ${totalBlanco}): ${blanco.map(p => p.name).join(', ')}`,
+  ].join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = el('btn-share');
+    const prev = btn.textContent;
+    btn.textContent = '¡Copiado!';
+    setTimeout(() => { btn.textContent = prev; }, 2000);
+  });
 });
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
@@ -403,6 +422,19 @@ const DEFAULT_PLAYERS = [
   { name: 'Roll',           control: 6, fisica: 6, velocidad: 6 },
 ];
 
+// ── URL param: ?jugador=Nombre ─────────────────────────────────────────────
+function handleUrlParam() {
+  const params = new URLSearchParams(window.location.search);
+  const nombre = params.get('jugador');
+  if (!nombre) return;
+  const player = state.players.find(p =>
+    p.name.toLowerCase() === nombre.toLowerCase()
+  );
+  if (player) {
+    openModal({ title: `Tus stats, ${player.name}`, player });
+  }
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 load();
 if (state.players.length < DEFAULT_PLAYERS.length) {
@@ -410,3 +442,4 @@ if (state.players.length < DEFAULT_PLAYERS.length) {
   save();
 }
 renderAll();
+handleUrlParam();
