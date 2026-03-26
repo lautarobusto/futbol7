@@ -491,9 +491,17 @@ function normName(s) {
 function sanitizeWspLine(line) {
   return line
     .normalize('NFC')
-    .replace(/[\u2000-\u200F\u202A-\u202E\u2060\uFEFF]/g, ' ')
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
+    .replace(/[\u00A0\u2000-\u200F\u2028-\u202E\u2060\uFEFF]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeWspText(text) {
+  return text
+    .normalize('NFC')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u2028\u2029]/g, '\n');
 }
 
 function extractWspName(line) {
@@ -551,11 +559,28 @@ function matchPlayer(search) {
 }
 
 function parseWspList(text) {
+  const normalized = normalizeWspText(text);
   const names = [];
-  for (const line of text.split('\n')) {
+
+  for (const line of normalized.split('\n')) {
     const name = extractWspName(line);
     if (name) names.push(name);
   }
+
+  if (names.length) return names;
+
+  const compact = normalized
+    .split('\n')
+    .map(sanitizeWspLine)
+    .filter(Boolean)
+    .join('\n');
+
+  const entryRegex = /(?:^|\n)[^\p{L}\p{N}]*\d+\s*[.)-]?[^\p{L}\p{N}]*(.+?)(?=\n[^\p{L}\p{N}]*\d+\s*[.)-]?|\n\s*suplentes\b|$)/giu;
+  for (const match of compact.matchAll(entryRegex)) {
+    const name = extractWspName(match[0]);
+    if (name) names.push(name);
+  }
+
   return names;
 }
 
