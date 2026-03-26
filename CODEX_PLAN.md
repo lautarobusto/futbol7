@@ -52,8 +52,10 @@ Archivos clave:
 - Sort de jugadores (`score` / `name` / `attendance`)
 - **PWA completa** — `manifest.json`, `sw.js`, íconos, service worker
 
-### ❌ Implementado mal — corregir antes de avanzar
-- **Admin lock con PIN** — requerimiento cambió: edición abierta para todos. Ver Feature 1.
+### ✅ Corregido
+- **Admin lock** — eliminado. Edición abierta para todos. ✅ Feature 1 completada.
+
+### ❌ Pendiente de corrección
 - **Auto-guardado en historial** — `recordMatch()` se llama al armar Y al re-mezclar. Debe ser manual con modal. Ver Feature 3.
 - **Formato WhatsApp con emojis** — se rompen en algunos dispositivos. Ver Feature 4.
 
@@ -63,17 +65,7 @@ Archivos clave:
 
 ---
 
-### Feature 1 — Edición abierta (remover lock de admin)
-
-**Problema:** se implementó un candado con PIN que bloquea la edición de stats. No hace falta — cualquiera del grupo puede editar.
-
-**Qué hacer:**
-- Eliminar el botón `admin-toggle` del `<header>` en `index.html`
-- Eliminar toda la lógica de admin en `app.js`: `ADMIN_KEY`, `state.isAdmin`, `saveAdminState()`, el prompt del PIN, y el condicional `hidden` en los botones de editar/eliminar
-- Los botones ✏️ y ✕ de cada jugador siempre visibles
-- El botón `+ Jugador` siempre visible
-- Eliminar la clase `.admin-toggle` y `.admin-toggle.is-admin` de `style.css`
-- Eliminar el texto "Modo lectura. Activá el candado para editar..." del render
+### ~~Feature 1 — Edición abierta~~ ✅ DONE
 
 ---
 
