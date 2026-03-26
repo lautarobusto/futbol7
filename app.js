@@ -369,33 +369,50 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
 });
 
-// ── Default players (seed on first load) ──────────────────────────────────
+// ── Default players ────────────────────────────────────────────────────────
 const DEFAULT_PLAYERS = [
   // gambeta → control alto
-  { name: 'David',     control: 8, fisica: 6, velocidad: 7 },
-  { name: 'Seba',      control: 8, fisica: 6, velocidad: 7 },
-  { name: 'Emi',       control: 8, fisica: 6, velocidad: 7 },
-  // medio/defensa → físico alto
-  { name: 'JP',        control: 6, fisica: 7, velocidad: 6 },
-  { name: 'Chino',     control: 6, fisica: 7, velocidad: 6 },
-  { name: 'Cata',      control: 6, fisica: 7, velocidad: 6 },
+  { name: 'David',          control: 8, fisica: 6, velocidad: 7 },
+  { name: 'Seba',           control: 8, fisica: 6, velocidad: 7 },
+  { name: 'Emiliano',       control: 8, fisica: 6, velocidad: 7 },
   // delantero → velocidad alta
-  { name: 'faffaa',    control: 6, fisica: 6, velocidad: 8 },
-  { name: 'Rodri',     control: 6, fisica: 6, velocidad: 8 },
-  { name: 'Roger',     control: 6, fisica: 6, velocidad: 8 },
-  { name: 'Damián N',  control: 6, fisica: 6, velocidad: 8 },
+  { name: 'fafafa',         control: 6, fisica: 6, velocidad: 8 },
+  { name: 'Roger',          control: 6, fisica: 6, velocidad: 8 },
+  { name: 'Damian N',       control: 6, fisica: 6, velocidad: 8 },
+  { name: 'Rodrigo (Chori)',control: 6, fisica: 6, velocidad: 8 },
+  // medio/defensa → físico alto
+  { name: 'JP',             control: 6, fisica: 7, velocidad: 6 },
+  { name: 'Chino',          control: 6, fisica: 7, velocidad: 6 },
+  { name: 'Cata',           control: 6, fisica: 7, velocidad: 6 },
   // defensa → físico alto
-  { name: 'Pablo E',   control: 5, fisica: 8, velocidad: 6 },
+  { name: 'Pablo E.',       control: 5, fisica: 8, velocidad: 6 },
   // medio/físico
-  { name: 'Damián G',  control: 5, fisica: 9, velocidad: 6 },
+  { name: 'Christian Damián', control: 5, fisica: 9, velocidad: 6 },
   // mixto / medio → todo parejo
-  { name: 'Vlad',      control: 6, fisica: 6, velocidad: 6 },
-  { name: 'Gabriel S', control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Vlad',           control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Gabriel N.',     control: 6, fisica: 6, velocidad: 6 },
+  // sin rol conocido → default parejo
+  { name: 'El Chato',       control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Dan',            control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Gerardo R.',     control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Pepi',           control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Julio',          control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Raúl',           control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Rodrigo V.',     control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Darío',          control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Parse',          control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Fran',           control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Horacio',        control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Matías G.',      control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Mau',            control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Maxi',           control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Pablo G.',       control: 6, fisica: 6, velocidad: 6 },
+  { name: 'Roll',           control: 6, fisica: 6, velocidad: 6 },
 ];
 
 // ── Init ───────────────────────────────────────────────────────────────────
 load();
-if (state.players.length === 0) {
+if (state.players.length < DEFAULT_PLAYERS.length) {
   state.players = DEFAULT_PLAYERS.map(p => ({ id: uid(), ...p }));
   save();
 }
